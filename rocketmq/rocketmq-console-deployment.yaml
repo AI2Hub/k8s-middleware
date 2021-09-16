@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rocketmq-manager
+  namespace: uat
+  labels:
+    app: rocketmq-manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rocketmq-manager
+  template:
+    metadata:
+      labels:
+        app: rocketmq-manager
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                - key: "app"
+                  operator: In
+                  values: ["middleware"]
+      imagePullSecrets:
+        - name: harbor-secret
+      containers:
+      - env:
+        - name: JAVA_OPTS
+          value: "-XX:MetaspaceSize=128m -XX:MaxMetaspaceSize=128m -Xms1024m -Xmx1024m -Xmn256m -Xss256k -XX:SurvivorRatio=8 -XX:+UseConcMarkSweepGC -Drocketmq.namesrv.addr=rocketmq-ns.uat.svc.retailcluster.local:9876 -Dcom.rocketmq.sendMessageWithVIPChannel=false"
+        image: 10.150.30.17:28080/ops/rocketmq-console:latest
+        imagePullPolicy: Always
+        name: rocketmq-manager
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 2000Mi
+          requests:
+            cpu: 100m
+            memory: 100Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rocketmq-manager
+  namespace: uat
+  labels:
+    app: rocketmq-manager
+spec:
+  clusterIP: None
+  selector:
+    app: rocketmq-manager
+  ports:
+    - name: http
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+

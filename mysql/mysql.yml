@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+  namespace: uat
+spec:
+  selector:
+    matchLabels:
+      app: mysql
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      nodeName: local-retail-worker-1
+      containers:
+      - image: mysql:5.7.22
+        imagePullPolicy: Always
+        name: mysql
+        ports:
+        - containerPort: 3306
+        env:
+          - name: MYSQL_ROOT_PASSWORD
+            value: xcJU57p4EIRU
+        volumeMounts:
+        - name: mysql-conf
+          mountPath: /etc/mysql
+        - name: mysql-data
+          mountPath: /var/lib/mysql
+      volumes:
+      - name: mysql-data
+        hostPath:
+          path: /data/uat/mysql/data
+      - name: mysql-conf
+        hostPath:
+          path: /data/uat/mysql/conf
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  namespace: uat
+spec:
+  type: NodePort
+  ports:
+  - name: mqsql
+    port: 3306
+    targetPort: 3306
+    nodePort: 30036
+  selector:
+    app: mysql

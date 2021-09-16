@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: canal-admin
+  namespace: uat
+  labels:
+    app: canal-admin
+spec:
+  selector:
+    matchLabels:
+      app: canal-admin
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: canal-admin
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - middleware
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: "app"
+                    operator: In
+                    values:
+                    - canal-admin
+              topologyKey: "kubernetes.io/hostname"
+      imagePullSecrets:
+      - name: harbor-secret
+      containers:
+      - name: canal-admin
+        image: 10.150.30.17:28080/ops/canal-admin:latest
+        imagePullPolicy: Always
+        env:
+        - name: MYSQL_ADDR
+          value: mysql.uat.svc.retailcluster.local:3306
+        - name: MYSQL_DBNAME
+          value: canal-admin
+        - name: MYSQL_USER
+          value: canal
+        - name: MYSQL_PASSWD
+          value: zGspYZQ6OS8o
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: canal-admin
+  namespace: uat
+spec:
+  clusterIP: None
+  ports:
+  - name: canal-admin
+    port: 8089
+    targetPort: 8089
+  selector:
+    app: canal-admin
+

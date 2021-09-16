@@ -1,0 +1,155 @@
+apiVersion: apps/v1
+kind: StatefulSet 
+metadata:
+  name: zk
+  namespace: uat
+spec:
+  selector:
+    matchLabels:
+      app: zookeeper
+  serviceName: zookeeper
+  replicas: 3
+  updateStrategy:
+    type: RollingUpdate
+  podManagementPolicy: OrderedReady
+  template:
+    metadata:
+      labels:
+        app: zookeeper
+    spec:
+      affinity:
+        # node亲和性
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - "middleware"
+        # pod反亲和
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: "app"
+                    operator: In
+                    values:
+                    - zookeeper 
+              topologyKey: "kubernetes.io/hostname"
+      # 初始化zk myid
+      initContainers:
+        - name: create-myid
+          image: docker.io/library/busybox
+          env:
+            # 获取pod name
+            - name: PODNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          command:
+            - sh
+            - -c
+            - "/usr/bin/setmyid /opt/zookeeper/zookeeper_data/myid"
+          volumeMounts:
+            - name: zookeeper-data 
+              mountPath: /opt/zookeeper/zookeeper_data/
+              subPathExpr: $(PODNAME)
+            # 挂载设置myid脚本: 脚本保存在configmap
+            - name: setmyid
+              mountPath: /usr/bin/
+      imagePullSecrets:
+        - name: harbor-secret
+      containers:
+      - name: zookeeper 
+        imagePullPolicy: Always
+        image: 10.150.30.17:28080/ops/zookeeper:3.6.3
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "0.5"
+        env:
+          # 获取pod name
+          - name: PODNAMEZK
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+        ports:
+          - containerPort: 2181
+            hostPort: 2181
+            name: client
+          - containerPort: 2888
+            hostPort: 2888
+            name: server
+          - containerPort: 3888
+            hostPort: 3888
+            name: leader-election
+        command:
+          - sh
+          - -c
+          - "/apache-zookeeper-3.6.3-bin/bin/zkServer.sh start-foreground"
+        readinessProbe:
+          tcpSocket:
+            port: 2181
+          initialDelaySeconds: 30
+          timeoutSeconds: 5
+        livenessProbe:
+          tcpSocket:
+            port: 2181
+          initialDelaySeconds: 30
+          timeoutSeconds: 5
+        volumeMounts:
+          - name: zookeeper-data
+            mountPath: /opt/zookeeper/zookeeper_data
+            subPathExpr: $(PODNAMEZK)
+          - name: timezone
+            mountPath: /etc/localtime
+          - name: zookeeper-conf
+            mountPath: /conf/zoo.cfg
+            subPath: zoo.cfg
+      securityContext:
+        runAsUser: 0
+        fsGroup: 0
+      volumes:
+      # 初始化zk myid
+      - name: setmyid
+        configMap:
+          name: zookeeper-conf
+          defaultMode: 0777
+          items:
+          - key: setmyid
+            path: setmyid
+      #挂载zk配置文件
+      - name: zookeeper-conf
+        configMap:
+          name: zookeeper-conf
+          items:
+          - key: zoo.cfg
+            path: zoo.cfg
+      # zk 日志目录
+      - name: timezone
+        hostPath:
+          path: /etc/localtime
+          type: File
+      - name: zookeeper-data
+        persistentVolumeClaim:
+          claimName: zookeeper
+      
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zookeeper
+  namespace: uat
+  labels:
+    app: zookeeper
+spec:
+  selector:
+    app: zookeeper
+  clusterIP: None
+  ports:
+    - protocol: TCP
+      port: 2181
+      targetPort: 2181
+      name: zk-2181
+

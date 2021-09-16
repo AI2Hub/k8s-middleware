@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  namespace: uat
+  labels:
+    app: nginx
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: ingress
+                operator: In
+                values:
+                - "true"
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: "app"
+                    operator: In
+                    values:
+                    - nginx 
+              topologyKey: "kubernetes.io/hostname"
+      imagePullSecrets:
+        - name: harbor-secret
+      containers:
+      - name: rocketmq-ns
+        image: 10.150.30.17:28080/ops/nginx:1.18.0-01
+        imagePullPolicy: Always
+        volumeMounts:
+          - name: nginx-conf
+            mountPath: /etc/nginx
+          - name: nginx-logs
+            mountPath: /data/nginx/logs
+          - name: nginx-web
+            mountPath: /data/app/
+        livenessProbe:
+          failureThreshold: 3
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          tcpSocket:
+            port: 80
+          timeoutSeconds: 3
+        readinessProbe:
+          failureThreshold: 3
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          tcpSocket:
+            port: 80
+          timeoutSeconds: 3
+      tolerations:
+        - key: "ingress"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirstWithHostNet
+      hostNetwork: true
+      volumes:
+      - name: nginx-conf
+        hostPath:
+          path: /data/k8s/nginx
+      - name: nginx-logs
+        hostPath:
+          path: /data/k8s/logs
+      - name: nginx-web
+        hostPath:
+          path: /data/k8s/app

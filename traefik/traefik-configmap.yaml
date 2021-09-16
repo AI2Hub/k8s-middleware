@@ -1,0 +1,21 @@
+apiVersion: v1
+data:
+  traefik.toml: |
+    defaultEntryPoints = ["http","https"]
+    insecureSkipVerify = true
+    [entryPoints]
+      [entryPoints.http]
+      address = ":80"
+      [entryPoints.https]
+      address = ":443"
+        [entryPoints.https.tls]
+          [[entryPoints.https.tls.certificates]]
+          CertFile = "/ssl/ingageapp.com.crt"
+          KeyFile = "/ssl/ingageapp.com.key"
+          [[entryPoints.https.tls.certificates]]
+          CertFile = "/ssl/xiaoshouyi.com.crt"
+          KeyFile = "/ssl/xiaoshouyi.com.key"
+kind: ConfigMap
+metadata:
+  name: traefik-conf
+  namespace: kube-system

@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: canal-server
+  namespace: uat
+  labels:
+    app: canal-server
+spec:
+  selector:
+    matchLabels:
+      app: canal-server
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: canal-server
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - middleware
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: "app"
+                    operator: In
+                    values:
+                    - canal-server
+              topologyKey: "kubernetes.io/hostname"
+      imagePullSecrets:
+      - name: harbor-secret
+      containers:
+      - name: canal-server
+        image: 10.150.30.17:28080/ops/canal-server:v1.1.5
+        imagePullPolicy: Always
+        #command: ["top","-b"]  
+        env:
+        - name: CANAL_ADMIN_ADDR
+          value: canal-admin.uat.svc.retailcluster.local:8089
+        - name: REGISTER_IP
+          value: canal-server.uat.svc.retailcluster.local
+
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: canal-server
+  namespace: uat
+spec:
+  clusterIP: None
+  ports:
+  - name: admin
+    port: 11110
+    targetPort: 11110
+  - name: tcp
+    port: 11111
+    targetPort: 11111
+  - name: metric
+    port: 11112
+    targetPort: 11112
+  selector:
+    app: canal-server
+

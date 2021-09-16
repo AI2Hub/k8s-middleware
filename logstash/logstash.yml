@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: logstash
+  namespace: uat
+  labels:
+    app: logstash
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: logstash
+  strategy:
+    rollingUpdate:
+      maxSurge: 50%
+      maxUnavailable: 70%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: logstash
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - middleware
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: "app"
+                    operator: In
+                    values:
+                    - logstash
+              topologyKey: "kubernetes.io/hostname"
+      imagePullSecrets:
+      - name: harbor-secret
+      containers:
+      - name: logstash
+        image: 10.150.30.17:28080/ops/logstash:6.8.13
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: logstash-conf
+          mountPath: /usr/share/logstash/pipeline/logstash.conf
+          subPath: logstash.conf
+
+      volumes:
+      - name: logstash-conf
+        configMap:
+          name: logstash-conf
+          items:
+          - key: logstash_logs.conf
+            path: logstash.conf
+      
+      
+
+

@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: rocketmq-master-b
+  namespace: uat
+  labels:
+    app: rocketmq-master-b
+
+spec:
+  serviceName: rocketmq-master-b
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rocketmq-master-b
+  template:
+    metadata:
+      labels:
+        app: rocketmq-master-b
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: "app"
+                    operator: In
+                    values:
+                      - rocketmq-master-b
+              topologyKey: "kubernetes.io/hostname"
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                - key: "app"
+                  operator: In
+                  values: ["middleware"]
+      imagePullSecrets:
+      - name: harbor-secret
+      containers:
+        - name: rmqbroker
+          image: 10.150.30.17:28080/ops/rocketmq:4.8.0
+          imagePullPolicy: Always
+          resources:
+            limits:
+              cpu: 440m
+              memory: 3000Mi
+            requests:
+              cpu: 400m
+              memory: 2000Mi
+          env:
+            - name: TZ
+              value: Asia/Shanghai
+            - name: JAVA_OPT_EXT
+              value: -Xms2g -Xmx2g -Xmn1g
+            - name: PODNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+
+          command: [ "sh","-c","mqbroker -c /etc/rocketmq/broker-b.conf" ]
+          readinessProbe:
+            tcpSocket:
+              port: 10911
+            initialDelaySeconds: 30
+            timeoutSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: 10911
+            initialDelaySeconds: 30
+            timeoutSeconds: 5
+          ports:
+            - containerPort: 10911
+            - containerPort: 10912
+            - containerPort: 10913
+          volumeMounts:
+            - name: rocketmq-b-data
+              mountPath: /data/rocketmq-b/store
+              subPathExpr: $(PODNAME)/rocketmq-b-data  
+            - name: rocketmq-b-logs
+              mountPath: /home/rocketmq/logs
+              subPathExpr: $(PODNAME)/rocketmq-b-logs             
+            - name: rocketmq-b-conf
+              mountPath: /etc/rocketmq/broker-b.conf
+              subPath: broker-b.conf
+      volumes:
+        - name: rocketmq-b-data
+          persistentVolumeClaim:
+            claimName: glusterfs-rocketmq-b-data
+        - name: rocketmq-b-logs
+          persistentVolumeClaim:
+            claimName: glusterfs-rocketmq-b-logs
+        - name: rocketmq-b-conf
+          configMap:
+            name: rocketmq-conf
+            items: 
+            - key: broker-b.conf
+              path: broker-b.conf
+              
+
+
