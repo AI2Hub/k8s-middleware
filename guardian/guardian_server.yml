@@ -1,0 +1,296 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: guardian-server
+  namespace: uat
+spec:
+  selector:
+    matchLabels:
+      app: guardian-server
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: guardian-server
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: "app"
+                    operator: In
+                    values:
+                      - guardian-server
+              topologyKey: "kubernetes.io/hostname"
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                - key: "app"
+                  operator: In
+                  values: ["middleware"]
+      imagePullSecrets:
+      - name: harbor-secret
+      containers:
+      - image: 10.150.30.17:28080/ops/guardian_server:latest
+        imagePullPolicy: Always
+        name: guardian-server
+        volumeMounts:
+          - name: guardian-server-conf-path
+            mountPath: /root/server_conf/guardian_server_conf_path.yaml
+            subPath: guardian_server_conf_path.yaml 
+          - name: guardian-server-conf-uat
+            mountPath: /root/server_conf/guardian_server_uat.yaml
+            subPath: guardian_server_uat.yaml
+          - name: k8s-config
+            mountPath: /root/server_conf/k8s_config
+            subPath: k8s_config
+      volumes:
+        - name: guardian-server-conf-path
+          configMap:
+            name: guardian-server-conf
+            items:
+            - key: guardian_server_conf_path.yaml
+              path: guardian_server_conf_path.yaml
+        - name: guardian-server-conf-uat
+          configMap:
+            name: guardian-server-conf
+            items:
+            - key: guardian_server_uat.yaml
+              path: guardian_server_uat.yaml
+        - name: k8s-config
+          configMap:
+            name: guardian-server-conf
+            items:
+            - key: k8s_config
+              path: k8s_config        
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: guardian-server-conf
+  namespace: uat
+
+data:
+  k8s_config: |
+    apiVersion: v1
+    clusters:
+    - cluster:
+        certificate-authority-data: xxx
+        server: https://10.150.30.2:8443
+      name: kubernetes
+    contexts:
+    - context:
+        cluster: kubernetes
+        user: kubernetes-admin
+      name: kubernetes-admin@kubernetes
+    current-context: kubernetes-admin@kubernetes
+    kind: Config
+    preferences: {}
+    users:
+    - name: kubernetes-admin
+      user:
+        client-certificate-data: xxx
+        client-key-data: xxx
+  guardian_server_conf_path.yaml: |
+    conf_path:
+      uat: ./server_conf/guardian_server_uat.yaml
+    #test: ""
+
+    # 自身的健康检查地址
+    self_health_address: "127.0.0.1:7999"
+    # 其它成员的健康检查地址
+    target_health_address: []
+
+    alarm_address: "guardian-alarm.uat.svc.retailcluster.local:8881"
+
+  guardian_server_uat.yaml: |
+    biz_conf:
+    # 待处理的消息, 最大排队数[这部分数据在进程退出后会丢失]
+      consumer_queue_num: 50
+      kafka_consumer:
+        # brokers 可以填入多个
+        brokers: ["kafka.uat.svc.retailcluster.local:9092"]
+        # consumer group
+        group: "guardian"
+        version: "2.7.0"
+        topics: ["zipkin2", "file_logging", "server_monitor_topic", "bigdata_logging"]
+      # "roundrobin", "sticky", "range"
+        assignor: "range"
+        oldest: false
+      # 1或者0, 如果设置为0, offset的遗忘时间将以broker为准; 如果设置为1, offset遗忘时间为1秒
+        offset_retention: 1
+      check_service: [ "file_logging", "health_check", "zipkin", "bigdata_logging"]  #--------------------目前这个配置不生效, 默认即可
+
+    agent_conf:
+      agent_queue_num: 50
+      agent_address: [ "http://10.150.30.5:8880","http://10.150.30.6:8880","http://10.150.30.7:8880","http://10.150.30.8:8880","http://10.150.30.9:8880","http://10.150.30.11:8880","http://10.150.30.12:8880","http://10.150.30.13:8880","http://10.150.30.15:8880","http://10.150.30.16:8880","http://10.150.30.17:8880",,"http://10.150.50.9:8880","http://10.150.50.17:8880"]
+      check_service: [ "/sysinfo" ]
+
+    middleware_conf:
+      queue_num: 50
+      kafka:
+        version: "2.7.0"
+        brokers: ["kafka.uat.svc.retailcluster.local:9092"]
+      redis:
+        address: "redis.uat.svc.retailcluster.local:6379"
+        password: ""
+        database: 0
+      elasticsearch:
+        address: "http://elasticsearch-log.uat.svc.retailcluster.local:9200"
+        path: "/_cluster/health?pretty"
+      rocketmq:
+        address: "rocketmq-manager.uat.svc.retailcluster.local:8080"
+      nacos:
+        namespace_id: "uat"
+        group_name: "REGISTER"
+        ip: ["nacos-0.nacos-headless.uat.svc.retailcluster.local","nacos-1.nacos-headless.uat.svc.retailcluster.local"]
+        path: "/nacos"
+        port: 8848
+      mysql:
+        username: "root"
+        password: "xcJU57p4EIRU"
+        address: "mysql.uat.svc.retailcluster.local:3306"
+        db_name: "mysql"
+      mongodb:
+        database_names: ["admin","config","local"]
+        uri: "mongo.uat.svc.retailcluster.local:27017"
+        user: "admin"
+        password: "dFrYbr6ksV"
+        
+      nginx:
+        address: "http://10.150.50.9/status/format/json"
+      emqx:
+        address: "http://emqx-headless.uat.svc.retailcluster.local:8081/api/v4/stats"
+        user: "admin"
+        passwd: "public"
+      k8s:
+        namespace: "sit"
+        kube_config_path: "./server_conf/k8s_config"
+      kafka_producer:
+        kafka_version: "2.7.0"
+        kafka_ip_port: ["kafka.uat.svc.retailcluster.local:9092"]
+        async: true
+        topic: "guardian_middleware"
+
+    task_conf: {}
+
+    alarm_conf:
+      # 多少条一起推送
+      alarm_queue_num: 1               #-------------------目前这个配置不生效, 默认是1
+      # 告警服务地址
+      http_address: "guardian-alarm.uat.svc.retailcluster.local:8881"
+      serve_wx_path: "/alarm/wx"       #--------------------目前这个配置不生效, 默认即可
+
+      kafka_producer:
+        kafka_version: "2.8.0"
+        kafka_ip_port: ["kafka.uat.svc.retailcluster.local:9092"]
+        async: true
+        topic: "guardian_alarm"
+
+      # 指标的报错边界
+      check_point:
+        biz:
+          file_logging:
+            exception: [ "com.xiaoshouyi.core.common.exception.BaseUnknownException" ]
+            result_code: [ 110001, 500, 501 ]
+          health_check:
+            # thread个数
+            thread_count:
+              zipkin-server: 300
+              product-service: 300
+              pay-service: 300
+              message-service: 300
+              job-admin: 300
+              order-service: 300
+              business-api: 300
+              basesku-service: 300
+              miniapp-service: 300
+              member-service: 300
+              risk-api: 300
+              promotion-service: 300
+              account-service: 300
+              data-exchange-service: 300
+              basement-service: 300
+              open-gateway: 300
+              platform-config-service: 300
+              ecommerce-service: 300
+              order-makeup: 300
+              common-service: 300
+              job-client: 300
+              search-service: 300
+            # memory部分free/total, 单位是百分比
+            memory_free_percent: 15
+          zipkin:
+            # 超时时间, 单位是毫秒
+            duration: 5000
+
+        host:
+          # mem_usage 主机内存使用率
+          mem_usage: 0.95
+          # mem_value 主机剩余内存量(MB)
+          mem_value: 500
+          # cpu_usage 主机CPU使用率
+          cpu_usage: 0.85
+          # net_io_sent_rate 主机网卡上行速率(Mb/s) 
+          net_io_sent_rate: 800
+          # net_io_recv_rate 主机网卡下行速率(Mb/s)
+          net_io_recv_rate: 800
+          # disk_usage 主机磁盘使用率
+          disk_usage: 85
+          # disk_value 主机剩余磁盘大小(GB)
+          disk_value: 10
+          #服务日志目录增长不能超过指定值(MB)
+          service_directory_use: 100000
+          # process (running, zombie, sleep) 总和不能超过定值
+          process_num: 1000
+          # connection (tcp4, tcp6, udp4, udp6 "established") 总和不能超过定值
+          connection_num: 2000
+          # load 系统负载
+          load_1: 5
+          load_5: 5
+          load_15: 5
+
+        middleware:
+          redis_check:
+            # redis连接数
+            conn_num: 5000
+
+          kafka_check:
+            # 单个消费者组的延迟数
+            lag_sum: 10000
+
+          es_check:
+            health_status: red
+
+          rocketmq_check:
+            lag_sum: 10000
+
+          nacos_check:
+            healthy: true
+          
+          mysql_check:
+            qps: 1000
+            current_thread_running: 500
+            used_connections_percent: 95
+            slow_query_duration: 5000
+    
+          mongodb_check:
+            qps: 0
+            current_thread_running: 500
+            current_connections: 1000
+
+          nginx_check:
+            waiting: 10
+            requests: 1000
+            5xx: 10
+
+          k8s_check:
+            pod:
+              cpu_usage: 80
+              mem_usage: 80
+            node:
+              cpu_usage: 80
+              mem_usage: 80

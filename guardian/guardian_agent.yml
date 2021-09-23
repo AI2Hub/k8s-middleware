@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  namespace: uat
+  name: guardian-agent
+  labels: 
+    app: guardian-agent
+
+spec:
+  selector:
+    matchLabels:
+      app: guardian-agent
+  template:
+    metadata:
+      labels:
+        app: guardian-agent    
+    spec:
+      hostNetwork: true
+      nodeSelector: 
+        env: uat
+      imagePullSecrets:
+      - name: harbor-secret
+      containers:
+      - name: guardian-agent
+        image: 10.150.30.17:28080/ops/guardian_agent:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8880
+        volumeMounts:
+          - name: guardian-agent-conf
+            mountPath: /root/agent_conf/guardian_agent.yaml
+            subPath: guardian_agent.yaml 
+          - name: log-dir
+            mountPath: /data
+            readOnly: true
+          - name: proc
+            mountPath: /proc
+            readOnly: true
+      volumes:
+        - name: guardian-agent-conf
+          configMap:
+            name: guardian-agent-conf
+            items:
+            - key: guardian_agent.yaml
+              path: guardian_agent.yaml
+        - name: log-dir
+          hostPath:
+            path: /data
+        - name: proc
+          hostPath:
+            path: /proc
+    
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: guardian-agent-conf
+  namespace: uat
+
+data:
+  guardian_agent.yaml: |
+    # push kafka的时间间隔
+    interval: 10
+    kafka:
+      kafka_version: "2.8.0"
+      kafka_ip_port:  ["kafka.uat.svc.retailcluster.local:9092"]
+      async: true
+      topic: "hosts_monitor"
+
+    # 是否需要提供http服务
+    http_service: true
+    http_address: 0.0.0.0:8880
+
+    # 需要被监控的各个服务的日志目录地址
+    service_conf:
+      log_path: "/data/uat/logs"
