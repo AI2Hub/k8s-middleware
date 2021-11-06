@@ -24,6 +24,10 @@ spec:
                 operator: In
                 values:
                 - middleware
+              - key: env
+                operator: In
+                values:
+                - dev
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             - labelSelector:
@@ -39,6 +43,11 @@ spec:
       - name: canal-admin
         image: 10.150.30.17:28080/ops/canal-admin:latest
         imagePullPolicy: Always
+        resources:
+          limits:
+            memory: "512Mi" 
+          requests:
+            memory: "2Gi" 
         env:
         - name: MYSQL_ADDR
           value: mysql.uat.svc.retailcluster.local:3306

@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: canal-server
-  namespace: uat
+  namespace: dev
   labels:
     app: canal-server
 spec:
@@ -24,6 +24,10 @@ spec:
                 operator: In
                 values:
                 - middleware
+              - key: env
+                operator: In
+                values:
+                - dev
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             - labelSelector:
@@ -39,12 +43,16 @@ spec:
       - name: canal-server
         image: 10.150.30.17:28080/ops/canal-server:v1.1.5
         imagePullPolicy: Always
-        #command: ["top","-b"]  
+        resources:
+          limits:
+            memory: "512Mi" 
+          requests:
+            memory: "1Gi"  
         env:
         - name: CANAL_ADMIN_ADDR
-          value: canal-admin.uat.svc.retailcluster.local:8089
+          value: canal-admin.dev.svc.retailcluster.local:8089
         - name: REGISTER_IP
-          value: canal-server.uat.svc.retailcluster.local
+          value: canal-server.dev.svc.retailcluster.local
 
 
 
@@ -53,7 +61,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: canal-server
-  namespace: uat
+  namespace: dev
 spec:
   clusterIP: None
   ports:
