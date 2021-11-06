@@ -64,7 +64,7 @@ data:
         mutate{
             add_field => {
             "service" => "%{[source][3]}"
-            "is_nginx" => "%{[source][4]}"
+            "is_nginx" => "%{[source][2]}"
             "level" => "%{[source][5]}"
             }
         }

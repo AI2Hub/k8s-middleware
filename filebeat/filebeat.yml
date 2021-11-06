@@ -1,0 +1,105 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  namespace: uat
+  name: filebeat
+  labels: 
+    app: filebeat
+
+spec:
+  selector:
+    matchLabels:
+      app: filebeat
+  template:
+    metadata:
+      labels:
+        app: filebeat    
+    spec:
+      nodeSelector: 
+        env: uat
+        app: service
+      imagePullSecrets:
+      - name: harbor-secret
+      containers:
+      - name: filebeat
+        image: 10.150.30.17:28080/ops/filebeat:latest
+        imagePullPolicy: Always
+        resources:
+          limits:
+            memory: "500Mi" 
+          requests:
+            memory: "100Mi" 
+        env:
+        - name: KAFKA_ADDR
+          valueFrom:
+            configMapKeyRef:
+              name: backend-cm
+              key: filebeat.kafka.addr
+        - name: KAFKA_TOPIC
+          valueFrom:
+            configMapKeyRef:
+              name: backend-cm
+              key: filebeat.kafka.topic
+        volumeMounts:
+          - name: filebeat-conf
+            mountPath: /filebeat/filebeat.yml
+            subPath: filebeat.yml 
+          - name: app-logs
+            mountPath: /data/logs
+            readOnly: true
+      volumes:
+        - name: filebeat-conf
+          configMap:
+            name: filebeat-conf
+            items:
+            - key: filebeat.yml
+              path: filebeat.yml
+        - name: app-logs
+          hostPath:
+            path: /data/uat/logs
+    
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: filebeat-conf
+  namespace: uat
+
+data:
+  filebeat.yml: |
+    filebeat.config:
+      modules:
+        path: ${path.config}/modules.d/*.yml
+        reload.enabled: false
+
+    processors:
+      - add_host_metadata: ~
+      - add_cloud_metadata: ~
+
+    filebeat.inputs:
+    - enabled: true
+      paths:
+      - /data/logs/*/mqtt.log
+      - /data/logs/*/error.log
+      - /data/logs/*/rocketmq_subcrible.log
+      - /data/logs/*/rocketmq_publish.log
+      - /data/logs/*/request.log
+      - /data/logs/*/response.log
+      - /data/logs/*/transaction_handler.log
+      - /data/logs/*/transaction_command.log
+      type: log
+
+    - enabled: true
+      exclude_files: []
+      paths:
+      - /data/logs/*/common.log
+      type: log
+      multiline.pattern: '^\s*(\d{4}|\d{2})\-(\d{2}|[a-zA-Z]{3})\-(\d{2}|\d{4})'
+      multiline.negate: true
+      multiline.match: after
+
+
+    output.kafka:
+      hosts: '${KAFKA_ADDR}'
+      topic: '${KAFKA_TOPIC}'
+      required_acks: 1

@@ -1,0 +1,146 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: guardian-alarm
+  namespace: uat
+spec:
+  selector:
+    matchLabels:
+      app: guardian-alarm
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: guardian-alarm
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: "app"
+                    operator: In
+                    values:
+                      - guardian-alarm
+              topologyKey: "kubernetes.io/hostname"
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: "app"
+                    operator: In
+                    values: ["middleware"]
+      imagePullSecrets:
+        - name: harbor-secret
+      containers:
+        - image: 10.150.30.17:28080/ops/guardian_alarm:latest
+          imagePullPolicy: Always
+          name: guardian-alarm
+          volumeMounts:
+            - name: guardian-alarm
+              mountPath: /root/alarm_conf/guardian_alarm.yaml
+              subPath: guardian_alarm.yaml
+            - name: wechat
+              mountPath: /root/alarm_conf/wechat.tpl
+              subPath: wechat.tpl
+      volumes:
+        - name: guardian-alarm
+          configMap:
+            name: guardian-alarm-conf
+            items:
+              - key: guardian_alarm.yaml
+                path: guardian_alarm.yaml
+        - name: wechat
+          configMap:
+            name: guardian-alarm-conf
+            items:
+              - key: wechat.tpl
+                path: wechat.tpl
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: guardian-alarm
+  namespace: uat
+spec:
+  clusterIP: None
+  ports:
+    - name: alarm-http
+      port: 8882
+      targetPort: 8882
+    - name: alarm-rpc
+      port: 8881
+      targetPort: 8881
+  selector:
+    app: guardian-alarm
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: guardian-alarm-conf
+  namespace: uat
+data:
+  guardian_alarm.yaml: |
+    rpc_server:
+      server_address: "0.0.0.0:8881"
+      # 是否开启
+      use: true
+
+    http_server:
+      server_address: "0.0.0.0:8882"
+      #是否开启:true或false
+      use: true
+
+    # worker是调用wechat的并发数
+    consumer:
+      queue: "alert/im"
+      worker: 10
+
+    wechat:
+      corp_id: "wx7409b34a733c7e82"
+      agent_id: 1000156
+      secret: "GeF6K8Nreae490OpnZcMyAziPTQJc-reoqyc2hslBuE"
+      webhook:
+        - env: uat
+          url:
+            - "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=dd1d1f83-9381-4693-88bd-723402b35e54"
+        - env: sit
+          url:
+            - "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=53c12daf-3d4b-4f29-90c0-7ed8f9abcbb0"
+
+  wechat.tpl: |
+    {{ if .IsAlert }}
+    销售易零售平台监控中心异常提醒
+    告警环境: {{ .Env }}
+    告警时间: {{ .SendTime }}
+    故障时间: {{ .StartsAt }}
+    告警模块: {{ .Module }}
+    告警主题: {{ .AlertName }}
+    详细情况:
+        数据源: {{ .Source }}
+        TraceID: {{ .TraceID }}
+        所属服务: {{ .Service }}
+        故障主机: {{ .Instance }}
+        错误代码: {{ .ErrCode }}
+        错误详情: {{ .Description }}
+
+    {{ else if .IsRelease }}
+    **发布通知**
+    发布状态: {{ .Status }}
+    业务环境: {{ .Env }}
+    服务名称: {{ .Service }}
+    发布版本: {{ .Commit }}
+    发布主机: {{ .Instance }}
+    发布时间: {{ .StartsAt }}
+
+    {{else}}
+    [{{.Status}}]{{.SendTime}}
+    告警状态: {{.Status}}
+    告警主题: {{ .AlertName }}
+    告警详情: {{ .Description }}
+    故障时间: {{ .StartsAt }}
+    实例信息: {{ .Instance }}
+    {{ end }}
