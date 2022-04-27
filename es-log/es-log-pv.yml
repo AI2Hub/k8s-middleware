@@ -1,0 +1,71 @@
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: es-log-pv1
+  labels:
+    type: local
+spec:
+  storageClassName: local-storage
+  capacity:
+    storage: 250Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /data/es-log
+  persistentVolumeReclaimPolicy: Recycle
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - 172.16.3.21
+---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: es-log-pv2
+  labels:
+    type: local
+spec:
+  storageClassName: local-storage
+  capacity:
+    storage: 250Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /data/es-log
+  persistentVolumeReclaimPolicy: Recycle
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - 172.16.3.22
+---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: es-log-pv3
+  labels:
+    type: local
+spec:
+  storageClassName: local-storage
+  capacity:
+    storage: 250Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /data/es-log
+  persistentVolumeReclaimPolicy: Recycle
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - 172.16.3.23
