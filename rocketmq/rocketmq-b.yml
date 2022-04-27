@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rocketmq-broker-b
+  namespace: prod
+  labels:
+    app: rocketmq-broker-b
+
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rocketmq-broker-b
+  template:
+    metadata:
+      labels:
+        app: rocketmq-broker-b
+    spec:
+      nodeName: 172.16.3.12
+      imagePullSecrets:
+      - name: harbor-secret
+      containers:
+        - name: rocketmq-broker-b
+          image: 10.150.30.17:28080/ops/rocketmq:4.8.0
+          imagePullPolicy: IfNotPresent
+          resources:
+            limits:
+              cpu: 2
+              memory: 3Gi
+            requests:
+              cpu: 0.5
+              memory: 2Gi
+          env:
+            - name: TZ
+              value: Asia/Shanghai
+            - name: JAVA_OPT_EXT
+              value: -Xms2g -Xmx2g -Xmn1g
+            - name: PODNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+
+          command: [ "sh","-c","mqbroker -c /etc/rocketmq/broker-b.conf" ]
+          readinessProbe:
+            tcpSocket:
+              port: 10911
+            initialDelaySeconds: 30
+            timeoutSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: 10911
+            initialDelaySeconds: 30
+            timeoutSeconds: 5
+          ports:
+            - containerPort: 10911
+          volumeMounts:
+            - name: rocketmq-broker-b-data
+              mountPath: /home/rocketmq/store
+            - name: rocketmq-broker-b-logs
+              mountPath: /home/rocketmq/logs
+            - name: rocketmq-broker-b-conf
+              mountPath: /etc/rocketmq/broker-b.conf
+              subPath: broker-b.conf
+      initContainers:
+        - name: fix-permissions 
+          image: busybox
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+          command: ["sh", "-c", "chmod -R 777 /home/rocketmq/store /home/rocketmq/logs"]          
+          volumeMounts:
+            - name: rocketmq-broker-b-data
+              mountPath: /home/rocketmq/store
+            - name: rocketmq-broker-b-logs
+              mountPath: /home/rocketmq/logs
+      volumes:
+        - name: rocketmq-broker-b-data
+          hostPath:
+            path: /data/rocketmq-broker-b/data
+        - name: rocketmq-broker-b-logs
+          hostPath:
+            path: /data/rocketmq-broker-b/logs
+        - name: rocketmq-broker-b-conf
+          configMap:
+            name: rocketmq-conf
+            items: 
+            - key: broker-b.conf
+              path: broker-b.conf
