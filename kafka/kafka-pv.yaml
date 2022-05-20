@@ -1,14 +1,71 @@
-apiVersion: v1
 kind: PersistentVolume
+apiVersion: v1
 metadata:
-  name: kafka-volume
-  namespace: uat
+  name: kafka-pv1
+  labels:
+    app: kafka
 spec:
+  storageClassName: kafka-storage
   capacity:
     storage: 30Gi
   accessModes:
-    - ReadWriteMany
-  glusterfs:
-    endpoints: "glusterfs-volume"
-    path: "glusterfs-volume"
-    readOnly: false
+    - ReadWriteOnce
+  hostPath:
+    path: /data/kafka
+  persistentVolumeReclaimPolicy: Recycle
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - local-retail-worker-2
+---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: kafka-pv2
+  labels:
+    app: kafka
+spec:
+  storageClassName: kafka-storage
+  capacity:
+    storage: 30Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /data/kafka
+  persistentVolumeReclaimPolicy: Recycle
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - local-retail-worker-9
+---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: kafka-pv3
+  labels:
+    app: kafka
+spec:
+  storageClassName: kafka-storage
+  capacity:
+    storage: 30Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /data/kafka
+  persistentVolumeReclaimPolicy: Recycle
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - local-retail-worker-10
