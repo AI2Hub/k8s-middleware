@@ -1,17 +1,17 @@
 kind: PersistentVolume
 apiVersion: v1
 metadata:
-  name: kafka-pv1
+  name: es-log-pv1
   labels:
-    app: kafka
+    type: local
 spec:
-  storageClassName: kafka-storage
+  storageClassName: local-storage
   capacity:
-    storage: 30Gi
+    storage: 250Gi
   accessModes:
     - ReadWriteOnce
   hostPath:
-    path: /data/kafka
+    path: /data/es-log
   persistentVolumeReclaimPolicy: Recycle
   nodeAffinity:
     required:
@@ -20,22 +20,22 @@ spec:
         - key: kubernetes.io/hostname
           operator: In
           values:
-          - local-retail-worker-2
+          - 172.16.3.21
 ---
 kind: PersistentVolume
 apiVersion: v1
 metadata:
-  name: kafka-pv2
+  name: es-log-pv2
   labels:
-    app: kafka
+    type: local
 spec:
-  storageClassName: kafka-storage
+  storageClassName: local-storage
   capacity:
-    storage: 30Gi
+    storage: 250Gi
   accessModes:
     - ReadWriteOnce
   hostPath:
-    path: /data/kafka
+    path: /data/es-log
   persistentVolumeReclaimPolicy: Recycle
   nodeAffinity:
     required:
@@ -44,22 +44,22 @@ spec:
         - key: kubernetes.io/hostname
           operator: In
           values:
-          - local-retail-worker-9
+          - 172.16.3.22
 ---
 kind: PersistentVolume
 apiVersion: v1
 metadata:
-  name: kafka-pv3
+  name: es-log-pv3
   labels:
-    app: kafka
+    type: local
 spec:
-  storageClassName: kafka-storage
+  storageClassName: local-storage
   capacity:
-    storage: 30Gi
+    storage: 250Gi
   accessModes:
     - ReadWriteOnce
   hostPath:
-    path: /data/kafka
+    path: /data/es-log
   persistentVolumeReclaimPolicy: Recycle
   nodeAffinity:
     required:
@@ -68,4 +68,4 @@ spec:
         - key: kubernetes.io/hostname
           operator: In
           values:
-          - local-retail-worker-10
+          - 172.16.3.23

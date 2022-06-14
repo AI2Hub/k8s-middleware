@@ -19,10 +19,8 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
             - matchExpressions:
-              - key: app
-                operator: In
-                values:
-                - "middleware"
+              - key: kafka
+                operator: Exists
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             - labelSelector:
@@ -38,6 +36,13 @@ spec:
         - name: kafka
           imagePullPolicy: Always
           image: 10.150.30.17:28080/ops/kafka:2.13-2.7.0
+          resources:
+            requests:
+              memory: "1.5Gi"
+              cpu: "0.5"
+            limits:
+              memory: "1.5Gi"
+              cpu: "1"
           env:
             - name: PODNAME
               valueFrom:
@@ -94,19 +99,28 @@ spec:
             timeoutSeconds: 5
           volumeMounts:
             - name: kafka-logs
-              mountPath: /data/kafka/
-            - name: logs
               mountPath: /opt/kafka/logs
+            - name: kafka-data
+              mountPath: /data/kafka/
       securityContext:
         runAsUser: 0
         fsGroup: 0
       volumes:
-        - name: logs
-          hostPath:
-            path: /data/kafka/logs
         - name: kafka-logs
-          persistentVolumeClaim:
-            claimName: kafka
+          hostPath:
+            path: /data/kafka-logs/logs
+
+  volumeClaimTemplates:
+  - metadata:
+      name: kafka-data
+      labels: 
+        app: kafka
+    spec:
+      storageClassName: kafka-storage
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 30Gi        
 
 ---
 apiVersion: v1
