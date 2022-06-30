@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+spec:
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: nginx
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: "app"
+                    operator: In
+                    values:
+                      - nginx
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                - key: "nginx"
+                  operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      imagePullSecrets:
+      - name: harbor-secret
+      hostNetwork: true
+      containers:
+      - image: swr.cn-east-2.myhuaweicloud.com/shsl-ops/nginx-with-vts:latest
+        imagePullPolicy: Always
+        name: nginx
+        resources:
+          requests:
+            memory: "1Gi"
+          limits:
+            memory: "2Gi"
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: nginx-conf
+          mountPath: /etc/nginx/conf.d
+        - name: nginx-logs
+          mountPath: /data/nginx/logs
+        - name: nginx-web
+          mountPath: /data/app
+      volumes:
+      - name: nginx-web
+        hostPath:
+          path: /data/nginx/webroot
+      - name: nginx-conf
+        hostPath:
+          path: /data/nginx/conf
+      - name: nginx-logs
+        hostPath:
+          path: /data/nginx/logs
