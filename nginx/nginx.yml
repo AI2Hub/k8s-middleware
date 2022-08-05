@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: nginx
+  namespace: prod
 spec:
   strategy:
     type: Recreate
@@ -23,25 +24,26 @@ spec:
                     operator: In
                     values:
                       - nginx
+              topologyKey: "kubernetes.io/hostname"
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
               - matchExpressions:
                 - key: "nginx"
                   operator: Exists
-              topologyKey: "kubernetes.io/hostname"
       imagePullSecrets:
       - name: harbor-secret
       hostNetwork: true
+
       containers:
-      - image: swr.cn-east-2.myhuaweicloud.com/shsl-ops/nginx-with-vts:latest
+      - image: nginx-with-vts:latest
         imagePullPolicy: Always
         name: nginx
         resources:
           requests:
             memory: "1Gi"
           limits:
-            memory: "2Gi"
+            memory: "2Gi"  
         ports:
         - containerPort: 80
         volumeMounts:

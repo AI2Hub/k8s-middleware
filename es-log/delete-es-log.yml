@@ -1,0 +1,56 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: delete-es-log
+
+spec:
+  schedule: "0 2 * * *"
+  jobTemplate:
+    spec:
+      completions: 1
+      template:
+        metadata:
+          name: delete-es-log
+        spec:
+          containers:
+          - name: delete-es-log
+            image: hyr326/busybox
+            command: ["/bin/sh","-x","/data/scripts/delete_es_log.sh"]
+            volumeMounts:
+              - name: local-time
+                mountPath: /etc/localtime
+              - name: scripts
+                mountPath: /data/scripts/delete_es_log.sh
+                subPath: delete_es_log.sh
+          restartPolicy: Never
+          volumes:
+            - name: local-time
+              hostPath:
+                path: /etc/localtime
+            - name: scripts
+              configMap:
+                name: delete-es-log
+                items:
+                  - key: delete_es_log.sh
+                    path: delete_es_log.sh
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: delete-es-log
+data:
+  delete_es_log.sh: |
+    #!/bin/bash
+    # 删除过期的日志索引
+
+    # 索引保留时间
+    expire_days=10
+
+    # 索引有两种格式
+    date1=`date --date "$expire_days days ago" +"%Y.%m.%d"`
+
+    # 删除索引
+    curl -X DELETE http://elasticsearch-log.dev.svc.retailcluster.local:9200/*-$date1
+    curl -X DELETE http://elasticsearch-log.sit.svc.retailcluster.local:9200/*-$date1
+    curl -X DELETE http://elasticsearch-log.uat.svc.retailcluster.local:9200/*-$date1

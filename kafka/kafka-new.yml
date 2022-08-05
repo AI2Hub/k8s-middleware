@@ -54,7 +54,7 @@ spec:
       containers:
       - name: kafka
         imagePullPolicy: Always
-        image: ssjf-registry-vpc.cn-beijing.cr.aliyuncs.com/ops/k8s-kafka:2.13-2.7.0
+        image: 10.150.30.17:28080/ops/k8s-kafka:2.13-2.7.0
         resources:
           requests:
             memory: "4Gi"
@@ -68,7 +68,7 @@ spec:
         - "exec kafka-server-start.sh /opt/kafka/config/server.properties --override broker.id=${HOSTNAME##*-} \
           --override listeners=PLAINTEXT://:9092 \
           --override zookeeper.connect=zk-0.zookeeper.prod.svc.cluster.local:2181,zk-1.zookeeper.prod.svc.cluster.local:2181,zk-2.zookeeper.prod.svc.cluster.local:2181 \
-          --override log.dir=/var/lib/kafka \
+          --override log.dirs=/var/lib/kafka \
           --override auto.create.topics.enable=true \
           --override auto.leader.rebalance.enable=true \
           --override background.threads=10 \
