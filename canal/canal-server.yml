@@ -2,7 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: canal-server
-  namespace: dev
   labels:
     app: canal-server
 spec:
@@ -20,14 +19,8 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
             - matchExpressions:
-              - key: app
-                operator: In
-                values:
-                - middleware
-              - key: env
-                operator: In
-                values:
-                - dev
+              - key: middleware
+                operator: Exists
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             - labelSelector:
@@ -44,26 +37,24 @@ spec:
         image: 10.150.30.17:28080/ops/canal-server:v1.1.5
         imagePullPolicy: Always
         resources:
-          limits:
-            memory: "512Mi" 
           requests:
-            memory: "1Gi"  
+            memory: 1Gi
+            cpu: 0.2 
+          limits:
+            memory: 1500Mi
+            cpu: 0.5  
         env:
         - name: CANAL_ADMIN_ADDR
-          value: canal-admin.dev.svc.retailcluster.local:8089
+          value: canal-admin.dev.svc.cluster.local:8089
         - name: REGISTER_IP
-          value: canal-server.dev.svc.retailcluster.local
-
-
+          value: canal-server.dev.svc.cluster.local
 
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: canal-server
-  namespace: dev
 spec:
-  clusterIP: None
   ports:
   - name: admin
     port: 11110

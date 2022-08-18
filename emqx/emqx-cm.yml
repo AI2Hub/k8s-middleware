@@ -1,9 +1,16 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  namespace: uat
-  name: emqx-config
+  name: emqx-conf
 data:
-  EMQX_CLUSTER__K8S__ADDRESS_TYPE: hostname
-  EMQX_CLUSTER__K8S__APISERVER: https://kubernetes.default.svc.retailcluster.local:443
-  EMQX_CLUSTER__K8S__SUFFIX: svc.retailcluster.local
+  emqx_auth_mnesia.conf: |
+    ## Password hash.
+    ##
+    ## Value: plain | md5 | sha | sha256 | sha512
+    auth.mnesia.password_hash = sha256
+    auth.user.1.username = winpos
+    auth.user.1.password = 3XcWM5$H6l
+    auth.user.2.username = android
+    auth.user.2.password = Ct!LSxZbG9
+    auth.user.3.username = backend
+    auth.user.3.password = nonQZ$Tf#R

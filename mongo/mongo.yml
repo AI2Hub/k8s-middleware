@@ -2,7 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mongo
-  namespace: uat
 spec:
   selector:
     matchLabels:
@@ -13,34 +12,57 @@ spec:
       labels:
         app: mongo
     spec:
-      nodeName: local-retail-worker-2
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                - key: "mongo"
+                  operator: Exists     
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: "app"
+                    operator: In
+                    values:
+                      - mongo
+              topologyKey: "kubernetes.io/hostname"
       imagePullSecrets:
       - name: harbor-secret
+      hostNetwork: true
       containers:
       - image: 10.150.30.17:28080/ops/mongo:4.2
         imagePullPolicy: Always
         name: mongo
-        args:
-        - mongod 
-        - "--bind_ip" 
-        - "0.0.0.0"
-        - "--replSet"
-        - "retailrs"
-        - "--auth"
+        command: ["/bin/sh","-c"]
+        args: ["/etc/mongo/fix-permission.sh && docker-entrypoint.sh mongod --replSet=retailrs  --bind_ip=0.0.0.0 --auth --keyFile=/var/lib/keyFile"]
+        resources:
+          requests:
+            memory: 2Gi
+            cpu: 1
+          limits:
+            memory: 4Gi
+            cpu: 2        
         ports:
         - containerPort: 27017
         env:
           - name: MONGO_INITDB_ROOT_USERNAME
-            value: admin
+            value: root
           - name: MONGO_INITDB_ROOT_PASSWORD
-            value: dFrYbr6ksV
+            value: tks4iiiP7k
         volumeMounts:
         - name: mongo-data
           mountPath: /data/db
+        - name: keyfile
+          mountPath: /etc/mongo
       volumes:
       - name: mongo-data
         hostPath:
-          path: /data/uat/mongo/data
+          path: /data/mongo/data
+      - name: keyfile
+        configMap:
+          name: mongo-conf
 
 
 ---
@@ -48,13 +70,10 @@ apiVersion: v1
 kind: Service
 metadata:
   name: mongo
-  namespace: uat
 spec:
-  type: NodePort
   ports:
   - name: mongo
     port: 27017
     targetPort: 27017
-    nodePort: 30717
   selector:
     app: mongo

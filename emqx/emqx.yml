@@ -1,15 +1,11 @@
 apiVersion: apps/v1
-kind: StatefulSet
+kind: Deployment
 metadata:
-  namespace: uat
   name: emqx
   labels:
     app: emqx
 spec:
-  serviceName: emqx-headless
-  updateStrategy:
-    type: RollingUpdate
-  replicas: 3
+  replicas: 2
   selector:
     matchLabels:
       app: emqx
@@ -19,6 +15,12 @@ spec:
         app: emqx
     spec:
       affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                - key: "emqx"
+                  operator: Exists
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             - labelSelector:
@@ -28,19 +30,13 @@ spec:
                     values:
                       - emqx
               topologyKey: "kubernetes.io/hostname"
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
-                - key: "app"
-                  operator: In
-                  values: ["middleware"]
-      serviceAccountName: emqx
       imagePullSecrets:
       - name: harbor-secret
+      hostNetwork: true
       containers:
       - name: emqx
-        image: 10.150.30.17:28080/ops/emqx:4.3.8
+        image: swr.cn-east-2.myhuaweicloud.com/shsl-ops/emqx:4.4.3
+        imagePullPolicy: IfNotPresent
         ports:
         - name: mqtt
           containerPort: 1883
@@ -57,31 +53,67 @@ spec:
         - name: ekka
           containerPort: 4370
         env:
-          - name: EMQX_CLUSTER__DISCOVERY
-            value: k8s
+          - name: EMQX_LOADED_PLUGINS # 加载用户名密码插件
+            value: emqx_auth_mnesia
+          - name: EMQX_ALLOW_ANONYMOUS # 禁止匿名访问
+            value: "false"
           - name: EMQX_NAME
             value: emqx
-          - name: EMQX_CLUSTER__K8S__APISERVER
-            value: https://kubernetes.default.svc.retailcluster.local:443
-          - name: EMQX_CLUSTER__K8S__NAMESPACE
-            value: uat
-          - name: EMQX_CLUSTER__K8S__SERVICE_NAME
-            value: emqx-headless
-          - name: EMQX_CLUSTER__K8S__ADDRESS_TYPE
-            value: hostname
-          - name: EMQX_CLUSTER__K8S__APP_NAME
-            value: emqx
-          - name: EMQX_CLUSTER__K8S__SUFFIX
-            value: svc.retailcluster.local
+          - name: EMQX_HOST
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+          - name: EMQX_CLUSTER__DISCOVERY
+            value: static
+          - name: EMQX_CLUSTER__STATIC__SEEDS
+            value: "emqx@172.16.3.31,emqx@172.16.3.32"
+        resources:
+          requests:
+            memory: 500Mi
+            cpu: 0.1
+          limits:
+            memory: 1Gi
+            cpu: 1
+        volumeMounts:
+          - name: emqx-auth-mnesia-conf
+            mountPath: /opt/emqx/etc/plugins/emqx_auth_mnesia.conf
+            subPath: emqx_auth_mnesia.conf
+          - name: emqx-data
+            mountPath: /opt/emqx/data
+          - name: emqx-log
+            mountPath: /opt/emqx/log
+      initContainers:
+        - name: fix-permissions 
+          image: busybox
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+          command: ["sh", "-c", "chmod -R 777 /opt/emqx/data /opt/emqx/log"]          
+          volumeMounts:
+            - name: emqx-data
+              mountPath: /opt/emqx/data
+            - name: emqx-log
+              mountPath: /opt/emqx/log
+      volumes:
+      - name: emqx-auth-mnesia-conf
+        configMap:
+          name: emqx-conf
+          items:
+          - key: emqx_auth_mnesia.conf
+            path: emqx_auth_mnesia.conf
+      - name: emqx-data
+        hostPath:
+          path: /data/emqx/data
+      - name: emqx-log
+        hostPath:
+          path: /data/emqx/log
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  namespace: uat
-  name: emqx-headless
+  namespace: prod
+  name: emqx
 spec:
-  type: ClusterIP
-  clusterIP: None
   selector:
     app: emqx
   ports:

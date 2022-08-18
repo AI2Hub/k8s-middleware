@@ -16,7 +16,24 @@ spec:
       labels:
         app: rocketmq-broker-b
     spec:
-      nodeName: 172.16.3.12
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: "app"
+                    operator: In
+                    values:
+                      - rocketmq-broker-b
+              topologyKey: "kubernetes.io/hostname"
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - 172.16.3.12
       imagePullSecrets:
       - name: harbor-secret
       containers:

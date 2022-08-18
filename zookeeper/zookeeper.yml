@@ -57,8 +57,11 @@ spec:
         image: 10.150.30.17:28080/ops/k8s-zookeeper:1.0-3.4.10
         resources:
           requests:
+            memory: "300Mi"
+            cpu: 0.1
+          limits:
             memory: "500Mi"
-            cpu: "0.5"
+            cpu: 0.2
         ports:
         - containerPort: 2181
           name: client

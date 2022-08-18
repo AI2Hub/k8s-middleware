@@ -38,13 +38,38 @@ spec:
       labels:
         app: redis
     spec:
-      nodeName: local-retail-worker-3
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - redis
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: "app"
+                    operator: In
+                    values:
+                    - redis 
       imagePullSecrets:
       - name: harbor-secret
       containers:
-      - image: 10.150.30.17:28080/ops/redis:5
+      - name: redis
+        image: 10.150.30.17:28080/ops/redis:5
         imagePullPolicy: Always
-        name: redis
+        resources:
+          requests:
+            memory: 2Gi
+            cpu: 0.5
+          limits:
+            memory: 4Gi
+            cpu: 1
         args:
         - "redis-server"
         - "/usr/local/etc/redis/redis.conf" 

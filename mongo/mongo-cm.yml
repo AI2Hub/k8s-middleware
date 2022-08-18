@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mongo-conf
+data:
+  keyFile: |
+    L6FufUNACKMRjpbyeSCzB4ciy5OC8fqTTRv8gDyhH7+6ujPOJABAg1OkfIkG7Jmu
+    4YXOCSktlhquSnR3aRDYDBPVsiZF3ucAqzZAdPzIVbuFu099lEqllid1pccCJLIz
+    i5O1NY9wEwFgPZk/h7fFqUlSXluwe5uo6MAvj7SZKvg=
+  fix-permission.sh: |
+    cp /etc/mongo/keyFile /var/lib/keyFile
+    chown -R mongodb.mongodb /var/lib/keyFile
+    chmod 400 /var/lib/keyFile

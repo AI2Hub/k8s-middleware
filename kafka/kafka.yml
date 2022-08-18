@@ -59,6 +59,9 @@ spec:
           requests:
             memory: "4Gi"
             cpu: 1
+          limits:
+            memory: "4200Mi"
+            cpu: 2
         ports:
         - containerPort: 9092
           name: server
@@ -165,9 +168,17 @@ spec:
             port: 9092
           timeoutSeconds: 1
           initialDelaySeconds: 5
-      securityContext:
-        runAsUser: 1000
-        fsGroup: 1000
+      initContainers:
+        - name: fix-permissions 
+          image: busybox
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+          command: ["sh", "-c", "chmod 777 /var/lib/kafka"]          
+          volumeMounts:
+            - name: kafka-data
+              mountPath: /var/lib/kafka
+
   volumeClaimTemplates:
   - metadata:
       name: kafka-data
