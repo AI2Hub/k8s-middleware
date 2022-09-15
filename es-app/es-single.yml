@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: es
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: es
+  template:
+    metadata:
+      labels:
+        app: es
+    spec:
+      imagePullSecrets:
+        - name: harbor-secret
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: es
+                operator: Exists
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: "app"
+                    operator: In
+                    values:
+                    - es 
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: es
+          image: elasticsearch:7.9.3
+          imagePullPolicy: Always
+          ports:
+          - containerPort: 9200
+            name: outer
+          - containerPort: 9300
+            name: inner 
+          env:
+          - name: discovery.type
+            value: "single-node"
+          - name: network.host
+            value: "0.0.0.0"
+          - name: ES_JAVA_OPTS
+            value: "-Xmx4g -Xms4g"           
+          resources:
+            requests:
+              memory: 4Gi
+            limits:
+              memory: 5Gi
+          livenessProbe:
+            tcpSocket:
+              port: 9200
+            initialDelaySeconds: 5
+            timeoutSeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket:
+              port: 9200 
+            initialDelaySeconds: 15
+            timeoutSeconds: 5
+            periodSeconds: 20
+          volumeMounts:
+            - name: es-data
+              mountPath: /usr/share/elasticsearch/data
+      volumes: 
+        - name: es-data
+          hostPath:
+            path: /data/es/data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: es
+  labels:
+    app: es
+spec:
+  selector:
+    app: es
+  ports:
+    - protocol: TCP
+      port: 9200
+      targetPort: 9200
+      name: http-port
+    - protocol: TCP
+      port: 9300
+      targetPort: 9300
+      name: trans-port

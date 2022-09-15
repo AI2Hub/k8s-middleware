@@ -87,19 +87,45 @@ data:
       - /data/logs/*/response.log
       - /data/logs/*/transaction_handler.log
       - /data/logs/*/transaction_command.log
+      - /data/logs/*/applogupload.log
       type: log
+      fields:
+        log_topic: file_logging     
 
     - enabled: true
       exclude_files: []
       paths:
       - /data/logs/*/common.log
+      - /data/logs/*/stdout.log
       type: log
+      fields:
+        log_topic: file_logging
       multiline.pattern: '^\s*(\d{4}|\d{2})\-(\d{2}|[a-zA-Z]{3})\-(\d{2}|\d{4})'
       multiline.negate: true
       multiline.match: after
 
+    # 业务报警使用
+    - enabled: true
+      exclude_files: []
+      paths:
+      - /data/logs/*/stdout.log
+      type: log
+      fields:
+        log_topic: stdout
+      multiline.pattern: '^\s*(\d{4}|\d{2})\-(\d{2}|[a-zA-Z]{3})\-(\d{2}|\d{4})'
+      multiline.negate: true
+      multiline.match: after
+
+    - enabled: true
+      paths:
+      - /data/logs/*/error.log
+      type: log
+      fields:
+        log_topic: error_log     
+
+
 
     output.kafka:
       hosts: '${KAFKA_ADDR}'
-      topic: '${KAFKA_TOPIC}'
+      topic: '%{[fields][log_topic]}'
       required_acks: 1

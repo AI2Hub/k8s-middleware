@@ -13,7 +13,27 @@ spec:
       labels:
         app: mysql
     spec:
-      nodeName: local-retail-worker-1
+      hostNetwork: true
+      imagePullSecrets:
+      - name: harbor-secret
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: "kubernetes.io/hostname"
+                operator: In
+                values: 
+                - "cn-beijing.172.20.0.58"
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: "app"
+                    operator: In
+                    values:
+                    - mysql 
+              topologyKey: "kubernetes.io/hostname"
       containers:
       - image: mysql:5.7.22
         imagePullPolicy: Always
