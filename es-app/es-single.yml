@@ -42,6 +42,8 @@ spec:
           env:
           - name: discovery.type
             value: "single-node"
+          - name: cluster.name
+            value: "es-app"
           - name: network.host
             value: "0.0.0.0"
           - name: ES_JAVA_OPTS
