@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  namespace: sit
+  name: eureka
+  labels:
+    app: eureka
+spec:
+  serviceName: eureka
+  updateStrategy:
+    type: RollingUpdate
+  replicas: 3
+  selector:
+    matchLabels:
+      app: eureka
+  template:
+    metadata:
+      labels:
+        app: eureka
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: "app"
+                    operator: In
+                    values:
+                      - eureka
+              topologyKey: "kubernetes.io/hostname"
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                - key: sit
+                  operator: Exists
+      imagePullSecrets:
+      - name: harbor-secret
+      containers:
+      - name: eureka
+        image: jinmaoyunfu-registry-vpc.cn-beijing.cr.aliyuncs.com/jmbook/eureka-server:v1
+        ports:
+        - containerPort: 8761
+        env:
+        - name: EUREKA_SERVER_ADDRESS
+          value: http://eureka-0.eureka:8761/eureka,http://eureka-1.eureka:8761/eureka,http://eureka-2.eureka:8761/eureka
+        - name: ENVIRONMENT
+          value: prod
+        - name: JVM_OPTS
+          value: "-Xms512m -Xmx512m"
+        resources:
+          requests:
+            cpu: "500m"
+          limits:
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8761
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8761
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eureka
+  namespace: sit
+spec:
+  ports:
+  - name: eureka
+    port: 8761
+    targetPort: 8761
+  selector:
+    app: eureka
