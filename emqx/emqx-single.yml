@@ -40,11 +40,11 @@ spec:
       - name: harbor-secret
       containers:
       - name: emqx
-        image: jinmaoyunfu-registry-vpc.cn-beijing.cr.aliyuncs.com/jmbook/emqx:4.4.4
+        image: jinmaoyunfu-registry-vpc.cn-beijing.cr.aliyuncs.com/jmbook/emqx:4.4.9
         imagePullPolicy: Always
         env:
         - name: EMQX_LOADED_PLUGINS # 加载用户名密码插件
-          value: emqx_auth_mnesia
+          value: emqx_recon,emqx_retainer,emqx_management,emqx_dashboard,emqx_auth_mnesia
         - name: EMQX_ALLOW_ANONYMOUS # 禁止匿名访问
           value: "false"
         - name: EMQX_NAME
