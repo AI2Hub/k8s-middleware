@@ -1,0 +1,159 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: sit
+  name: emqx
+  labels:
+    app: emqx
+spec:
+  strategy:
+    type: Recreate
+  replicas: 1
+  selector:
+    matchLabels:
+      app: emqx
+  template:
+    metadata:
+      labels:
+        app: emqx
+    spec:
+      hostNetwork: true
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: "kubernetes.io/hostname"
+                operator: In
+                values: 
+                - "cn-beijing.172.20.0.63"
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: "app"
+                    operator: In
+                    values:
+                    - emqx
+              topologyKey: "kubernetes.io/hostname"
+      imagePullSecrets:
+      - name: harbor-secret
+      containers:
+      - name: emqx
+        image: jinmaoyunfu-registry-vpc.cn-beijing.cr.aliyuncs.com/jmbook/emqx:4.4.4
+        imagePullPolicy: Always
+        env:
+        - name: EMQX_LOADED_PLUGINS # 加载用户名密码插件
+          value: emqx_auth_mnesia
+        - name: EMQX_ALLOW_ANONYMOUS # 禁止匿名访问
+          value: "false"
+        - name: EMQX_NAME
+          value: emqx     
+        - name: EMQX_HOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP 
+        ports:
+        - name: mqtt
+          containerPort: 1883
+        - name: mqttssl
+          containerPort: 8883
+        - name: mgmt
+          containerPort: 8081
+        - name: ws
+          containerPort: 8083
+        - name: wss
+          containerPort: 8084
+        - name: dashboard
+          containerPort: 18083
+        resources:
+          requests:
+            memory: 1Gi
+          limits:
+            memory: 1Gi
+        volumeMounts:
+          - name: emqx-auth-mnesia-conf
+            mountPath: /opt/emqx/etc/plugins/emqx_auth_mnesia.conf
+            subPath: emqx_auth_mnesia.conf
+          - name: emqx-data
+            mountPath: /opt/emqx/data
+          - name: emqx-log
+            mountPath: /opt/emqx/log
+      initContainers:
+        - name: fix-permissions 
+          image: busybox
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+          command: ["sh", "-c", "chmod -R 777 /opt/emqx/data /opt/emqx/log"]          
+          volumeMounts:
+            - name: emqx-data
+              mountPath: /opt/emqx/data
+            - name: emqx-log
+              mountPath: /opt/emqx/log
+      volumes:
+      - name: emqx-auth-mnesia-conf
+        configMap:
+          name: emqx-conf
+          items:
+          - key: emqx_auth_mnesia.conf
+            path: emqx_auth_mnesia.conf
+      - name: emqx-data
+        hostPath:
+          path: /data/sit/emqx/data
+      - name: emqx-log
+        hostPath:
+          path: /data/sit/emqx/log
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: emqx-conf
+  namespace: sit
+
+data:
+  emqx_auth_mnesia.conf: |
+    ## Password hash.
+    ##
+    ## Value: plain | md5 | sha | sha256 | sha512
+    auth.mnesia.password_hash = sha256
+    auth.user.1.username = winpos
+    auth.user.1.password = c3hwAK8I
+    auth.user.2.username = android
+    auth.user.2.password = u4CFsu80
+    auth.user.3.username = backend
+    auth.user.3.password = qRdcKLjM
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: sit
+  name: emqx
+spec:
+  selector:
+    app: emqx
+  ports:
+  - name: mqtt
+    port: 1883
+    protocol: TCP
+    targetPort: 1883
+  - name: mqttssl
+    port: 8883
+    protocol: TCP
+    targetPort: 8883
+  - name: mgmt
+    port: 8081
+    protocol: TCP
+    targetPort: 8081
+  - name: websocket
+    port: 8083
+    protocol: TCP
+    targetPort: 8083
+  - name: wss
+    port: 8084
+    protocol: TCP
+    targetPort: 8084
+  - name: dashboard
+    port: 18083
+    protocol: TCP
+    targetPort: 18083
